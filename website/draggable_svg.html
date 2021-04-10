@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+
+    <!-- Fontawesome CSS required by the loader -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <title>Demo: Draggable Shapes</title>
+  </head>
+  <body id="body" onload="brython()" class="container vh-100">
+
+    <!-- The real project content starts from here -->
+    <h2>A little demo of drag-and-drop functionality in SVG</h2>
+    <p>Written in Python, hosted as a frontend static web page, powered by Brython.</p>
+    <ul>
+    <li>Some items are draggable. They will have a visual clue when mouse is hovering on them.</li>
+    <li>Coins can be placed fully inside piggy bank.</li>
+    <li>All draggable things can be thrown fully or partly into recycle bin.</li>
+    </ul>
+
+    <svg id="board" width='100%' height='100%' xmlns='http://www.w3.org/2000/svg' style="background-color: grey">
+      <title>Drag And Drop Demo</title>
+
+        <circle class="draggable coin" cx='25' cy='25' r='20' style='fill:silver;'/>
+        <circle class="draggable coin" cx='125' cy='25' r='20' style='fill:orange;'/>
+        <circle class="draggable coin" cx='225' cy='25' r='20' style='fill:gold;'/>
+        <rect class="draggable" x='50' y='50' width='60' height='30' style='fill:blue;'/>
+        <rect class="draggable" x='150' y='50' width='60' height='30' style='fill:purple;'/>
+        <text class="draggable" x='225' y='75' style='fill:red; font-size:18px; font-weight:bold;'>Draggable Text</text>
+
+        <rect id='piggy_bank' #class="draggable"
+          x='100' y='100' width='200' height='150'
+          style='fill:tan; stroke:brown; stroke-width:3;'/>
+        <rect id='recycle_bin'
+          x='400' y='100' width='200' height='150'
+          style='fill:green; stroke:brown; stroke-width:3;'/>
+    </svg>
+
+    <script type="text/python">
+    from browser import document
+    from draggable_svg import Board, get_differential
+    def droppable(element, target):
+      delta_x, delta_y = get_differential(element)
+      if "coin" in element.classList and target.id == "piggy_bank":
+        # Math calculation to detect whether a circle is fully inside a rectangle
+        r = int(element.attrs["r"])
+        x = int(element.attrs["cx"]) + delta_x
+        y = int(element.attrs["cy"]) + delta_y
+        return (target.id == "piggy_bank"
+          and int(target.attrs["x"]) + r < x
+            < int(target.attrs["x"]) + int(target.attrs["width"]) - r
+          and int(target.attrs["y"]) + r < y
+            < int(target.attrs["y"]) + int(target.attrs["height"]) - r
+          )
+      return target.id == "recycle_bin"
+    Board(document["board"], droppable=droppable)
+    </script>
+
+    <!-- The real project content ends here -->
+
+    <!-- Boilerplate code starts from here -->
+    <!-- This part is only needed when debugging in raw Android browser.
+    <script src="https://code.hnldesign.nl/hnl.mobileConsole.1.3.js"></script>
+    <script type="text/javascript">if (!mobileConsole.status.initialized) {mobileConsole.init();}</script>
+    -->
+
+    <!-- Load the javascript loader functions.
+         When brython is done initializing everything,
+         it emits a signal "brython_done" that a handler in loader.js
+         captures and removes the loading blocker.
+     -->
+    <script src="loader.js"></script>
+    <script type="text/javascript">start_loader("Loading System...")</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/brython/3.9.1/brython.min.js"></script>
+
+    <script type="text/javascript">
+      update_loader_message("Loading Standard Library...")
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/brython/3.9.1/brython_stdlib.min.js"></script>
+    <!-- Use the following two to replace the above CDN, if you want to use not-yet-released Brython code base -->
+    <!--<script src="https://raw.githack.com/brython-dev/brython/master/www/src/brython.js"></script>-->
+    <!--<script src="https://raw.githack.com/brython-dev/brython/master/www/src/brython_stdlib.js"></script>-->
+
+    <script type="text/javascript" src="site-packages.brython.js"></script>
+
+    <!--
+    On the first run, the parsing of your python code could take a few seconds.
+    The user will see whatever loader message is on the page when this process begins.
+    On subsequent runs, the modules it uses will already have been transpiled.
+    It will go fast and any message you change will flash quickly.
+    -->
+    <script type="text/javascript">update_loader_message("Loading Program Code....")</script>
+    <!-- Boilerplate code starts from here -->
+
+  </body>
+</html>
+
