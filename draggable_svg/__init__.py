@@ -3,5 +3,6 @@ from .board import (
                   # The other way around would introduce cyclic reference.
     Board,
     get_differential,
+    show,
     )
 

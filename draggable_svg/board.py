@@ -16,28 +16,33 @@ def get_differential(element):
     return transMatrix.e, transMatrix.f
 
 
+def show(element, differential):
+    """Show element at differential (x, y) spot of its real position.
+
+    The element's real coordinate (x, y) is *not* changed by this function.
+    """
+    x, y = differential
+    element.setAttributeNS(None, "transform", f"translate({x},{y})")
+
+
 class Board:
     def __init__(
         self,
         svg_element,
         *,
-        draggable=lambda element: "draggable" in element.classList,
-        droppable=lambda element, target: True,
+        draggable=None,
+        droppable=None,
+        on_drop=None,
     ):
         """This makes the given svg_element to become a board (as in a board game).
         Every sub-element inside svg_element would become draggable and droppable.
 
         :param svg_element: The SVG tag you defined in your html file.
             A typical input can be ``document["id_of_the_svg_tag_in_my_html"]``
-        :param callable draggable:
-            A callback whose input would be the element being grabbed.
-            It should return a boolean to determine whether a drag would be allowed.
-            The default implementation allows everything with a class name as
-            "draggable" to be draggable.
-        :param callable droppable:
-            A callback whose input would be the element being grabbed, and the target.
-            It should return a boolean to determine whether a drop would be allowed.
-            By default, you can drop at anywhere, including the backdrop.
+
+        :param callable draggable: An alternative way to customize self.draggable()
+        :param callable droppable: An alternative way to customize self.droppable()
+        :param callable on_drop: An alternative way to customize self.on_drop()
         """
         backdrops = svg_element.select("#BackDrop")
         if not backdrops:  # Then automatically create one as first child
@@ -71,21 +76,51 @@ class Board:
             "mousemove",  # mouseover fires only once when entering a new shape
             self._set_cursor)
 
-        self.draggable = draggable
-        self.droppable = droppable
+        self._draggable = draggable or self.draggable
+        self._droppable = droppable or self.droppable
+        self._on_drop = on_drop or self.on_drop
+
+    def draggable(self, element):
+        """
+        Return a boolean to determine whether a drag on element would be allowed.
+
+        By default, element with "draggable" class name is draggable.
+        """
+        return "draggable" in element.classList
+
+    def droppable(self, element, target):
+        """Return a boolean to determine whether element can be dropped on target.
+
+        The default implementation allows a drop on anywhere.
+        """
+        return True
+
+    def on_drop(self, element, target):
+        """The callback function to perform your customized after-drop operations.
+
+        It will be called when user releases the dragging element onto target,
+        AND when the corresponding ``droppable(element, target)`` returns True.
+
+        :returns:
+            Either ``None`` to mean the element is dropped as-is,
+            or an (x, y) differential to "snap" the element into
+            a customized location (original_x + x, original_y + y).
+            The default implementation returns a None.
+        """
+        return None
 
     def _set_cursor(self, evt):
         target = evt.target
         if self.DragTarget:
-            target.style.cursor = "grabbing" if self.droppable(
+            target.style.cursor = "grabbing" if self._droppable(
                 self.DragTarget, target) else "not-allowed"
         else:
             target.style.cursor = (
                 "grabbing"  # "grab" is not supported in Chrome
-                if self.draggable(target) else "default")
+                if self._draggable(target) else "default")
 
     def _grab(self, evt):
-        if evt.target == self.backdrop or not self.draggable(evt.target):
+        if evt.target == self.backdrop or not self._draggable(evt.target):
             # you cannot drag the background itself,
             # so ignore any attempts to mouse down on it
             return
@@ -117,32 +152,32 @@ class Board:
         y = (evt.clientY - translation.y) / newScale
         return (x, y)
 
-    def _move(self, x, y):
-        assert self.DragTarget
-        # apply a new tranform translation to the dragged element, to display
-        # it in its new location
-        self.DragTarget.setAttributeNS(None, "transform", f"translate({x},{y})")
-
     def _drag(self, evt):
         # account for zooming and panning
         self.TrueCoords.x, self.TrueCoords.y = self._get_true_coords(evt)
         if not self.DragTarget:
             # if we don't currently have an element in tow, don't do anything
             return
-        self._move(
+        show(self.DragTarget, (
             # account for the offset between the element's origin and the exact
             # place we grabbed it... This way, the drag will look more natural
             self.TrueCoords.x - self.GrabPoint.x,
-            self.TrueCoords.y - self.GrabPoint.y)
+            self.TrueCoords.y - self.GrabPoint.y))
 
     def _drop(self, evt):
         if not self.DragTarget:
             # if we aren't currently dragging an element, don't do anything
             return
-        if not self.droppable(self.DragTarget, evt.target):
-            self._move(*self.drag_starting_differential)  # Revert to its before-drag position
-                # We could also do self._move(0, 0) to revert to its original position
+        if not self._droppable(self.DragTarget, evt.target):
+            revert_to = (
+                # We could use (0, 0) to revert to its original position
                 # but that behavior is presumably unhelpful, so we don't do it here.
+                self.drag_starting_differential)
+            show(self.DragTarget, revert_to)  # Revert to its before-drag position
+        else:
+            new_differential = self._on_drop(self.DragTarget, evt.target)
+            if new_differential:
+                show(self.DragTarget, new_differential)
         self.DragTarget.setAttributeNS(
             # turn the pointer-events back on, so we can grab this item later
             None, "pointer-events", "all")
